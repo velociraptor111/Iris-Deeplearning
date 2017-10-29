@@ -1,32 +1,37 @@
-import tensorflow as tf
+import pandas as pd
 import numpy as np
-from sklearn import datasets
+import tensorflow as tf
 from sklearn.model_selection import train_test_split
 
-n_nodes_hl1 = 4
-n_classes = 3
-x = tf.placeholder('float',[None,4])
+num_features = 9
+n_nodes_hl1 = 5 #Mean of the input and output... 9+2/2 = 5
+n_classes = 2 #Benign or Malignant
+x = tf.placeholder('float',[None,num_features])
 y = tf.placeholder('float')
 
-def get_iris_data():
-    #Retrieving Data
-    iris  = datasets.load_iris()
-    features = iris['data'].astype(np.float32)
-    target = iris['target']
-    batch_size= 1
+def get_data():
+    breast_cancer_data = pd.read_csv('breast-cancer-wisconsin.data.txt')
+    breast_cancer_data.replace('?',-99999 , inplace=True)
+    breast_cancer_data['bare_nuclei'] = breast_cancer_data['bare_nuclei'] .astype('float64')
+    breast_cancer_data.drop(['id'], axis=1,inplace=True)
+    targets = np.array(breast_cancer_data['class'])
+    num_labels = len(np.unique(targets))
     
-    num_labels = len(np.unique(target))
-    
+    targets[targets == 2] = 0
+    targets[targets == 4] = 1
     #Convert the y labels into one-hot encoding
-    all_Y = np.eye(num_labels)[target]
+    all_Y = np.eye(num_labels)[targets]
+    features = breast_cancer_data.drop('class',axis=1)
+    features = features.as_matrix()
     
-    X_train,X_test,y_train,y_test = train_test_split(features,all_Y, test_size=0.2, random_state=30)
-    X_test = X_test.reshape(len(X_test),4)
+    X_train,X_test,y_train,y_test = train_test_split(features,all_Y, test_size=0.2, random_state=66)
 
+    
     return X_train,X_test,y_train,y_test
+    
 
 def feed_forward_network(features):
-    hidden_layer = { 'weights' : tf.Variable(tf.random_normal([4,n_nodes_hl1])),
+    hidden_layer = { 'weights' : tf.Variable(tf.random_normal([9,n_nodes_hl1])),
                    'bias' : tf.Variable(tf.random_normal([n_nodes_hl1]))}
     output_layer = { 'weights': tf.Variable(tf.random_normal([n_nodes_hl1,n_classes]))}
     
@@ -40,7 +45,7 @@ def feed_forward_network(features):
 def train_neural_network(x):
     
     #Get iris data
-    X_train,X_test,y_train,y_test = get_iris_data()
+    X_train,X_test,y_train,y_test = get_data()
     
     prediction = feed_forward_network(x)
     
@@ -59,7 +64,7 @@ def train_neural_network(x):
             epoch_loss = 0
             for i in range(0,int(len(X_train))):
                 epoch_x = X_train[i]
-                epoch_x = epoch_x.reshape(1,4)
+                epoch_x = epoch_x.reshape(1,9)
                 epoch_y = y_train[i]
                 
                 #_ is a convention to say that ignore this variable. The return of optimizer is nothing
@@ -79,7 +84,6 @@ def train_neural_network(x):
         accuracy = tf.reduce_mean(tf.cast(correct,'float'))
         
         print('Accuracy:', accuracy.eval({x:X_test,y:y_test}))
-            
+ 
 
-#Pass in a tensor variable for further evaluation later
 train_neural_network(x)
